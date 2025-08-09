@@ -2,7 +2,9 @@
 
 This project provides a simple implementation of the classic Snake game
 written in Rust and compiled to WebAssembly. The game renders on an HTML
-`<canvas>` element and is controlled with the arrow keys.
+`<canvas>` element and is controlled with the arrow keys. The snake grows
+as it eats food, a score counter is displayed, and the game ends on
+self-collision. Use the on-screen button or the Enter key to restart.
 
 ## Building
 

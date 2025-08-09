@@ -9,6 +9,6 @@ crate-type = ["cdylib"]
 [dependencies]
 wasm-bindgen = "0.2"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Window","Document","HtmlCanvasElement","CanvasRenderingContext2d","KeyboardEvent"] }
+web-sys = { version = "0.3", features = ["Window","Document","HtmlCanvasElement","CanvasRenderingContext2d","KeyboardEvent","HtmlElement","HtmlButtonElement","CssStyleDeclaration","EventTarget","Node"] }
 console_error_panic_hook = "0.1"
 
