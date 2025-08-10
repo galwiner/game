@@ -28,11 +28,13 @@
       </div>
     </div>
     <script type="module">
-      import init, { toggle_mode, restart } from "./pkg/snake_game.js";
+      import init, * as wasm from "./pkg/snake_game.js";
       init().then(() => {
         const mode = document.getElementById("mode");
-        mode.addEventListener("click", () => toggle_mode());
-        document.getElementById("restart").addEventListener("click", () => restart());
+        mode.addEventListener("click", () => wasm.toggle_mode());
+        document
+          .getElementById("restart")
+          .addEventListener("click", () => wasm.restart());
 
         const canvas = document.getElementById("game");
         let start = null;
