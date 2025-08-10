@@ -2,7 +2,9 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent, HtmlElement};
+use web_sys::{
+    CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent, HtmlElement,
+};
 
 const WIDTH: i32 = 20;
 const HEIGHT: i32 = 20;
@@ -13,7 +15,7 @@ fn set_score(score: i32) {
     let window = web_sys::window().unwrap();
     if let Some(document) = window.document() {
         if let Some(elem) = document.get_element_by_id("score") {
-            elem.set_inner_html(&format!("Score: {}", score));
+            elem.set_text_content(Some(&format!("Score: {}", score)));
         }
     }
 }
