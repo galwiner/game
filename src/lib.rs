@@ -54,7 +54,6 @@ pub fn start() -> Result<(), JsValue> {
     {
         let doc = document.clone();
         let closure = Closure::wrap(Box::new(move |event: KeyboardEvent| {
-            event.prevent_default();
             let key = event.key();
             GAME.with(|game| {
                 if let Some(g) = game.borrow_mut().as_mut() {

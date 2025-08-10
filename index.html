@@ -36,6 +36,10 @@
           .getElementById("restart")
           .addEventListener("click", () => wasm.restart());
 
+        document.addEventListener("keydown", (e) => e.preventDefault(), {
+          passive: false,
+        });
+
         const canvas = document.getElementById("game");
         let start = null;
         const dispatch = (key) =>
