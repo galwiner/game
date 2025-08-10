@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Rust WASM Snake</title>
+  </head>
+  <body>
+    <canvas id="game" style="touch-action:none;"></canvas>
+    <button id="mode">Switch to 3D</button>
+    <script type="module">
+      import init, { toggle_mode } from "./pkg/snake_game.js";
+      init().then(() => {
+        const mode = document.getElementById("mode");
+        mode.addEventListener("click", () => toggle_mode());
+
+        const canvas = document.getElementById("game");
+        let start = null;
+        const dispatch = (key) =>
+          document.dispatchEvent(new KeyboardEvent("keydown", { key }));
+
+        canvas.addEventListener(
+          "touchstart",
+          (e) => {
+            start = e.touches[0];
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+        canvas.addEventListener(
+          "touchmove",
+          (e) => e.preventDefault(),
+          { passive: false }
+        );
+        canvas.addEventListener(
+          "touchend",
+          (e) => {
+            if (!start) return;
+            const dx = e.changedTouches[0].clientX - start.clientX;
+            const dy = e.changedTouches[0].clientY - start.clientY;
+            if (Math.abs(dx) > Math.abs(dy)) {
+              if (dx > 30) dispatch("ArrowRight");
+              else if (dx < -30) dispatch("ArrowLeft");
+            } else {
+              if (dy > 30) dispatch("ArrowDown");
+              else if (dy < -30) dispatch("ArrowUp");
+            }
+            start = null;
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+      });
+    </script>
+  </body>
+</html>
