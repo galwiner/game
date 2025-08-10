@@ -373,14 +373,6 @@ impl Game3D {
     }
 }
 
-fn project_point(x: f64, y: f64, z: f64) -> (f64, f64) {
-    let d = DEPTH as f64 * 2.0;
-    let zf = z + d;
-    let px = (x - WIDTH as f64 / 2.0) * d / zf + WIDTH as f64 / 2.0;
-    let py = (y - HEIGHT as f64 / 2.0) * d / zf + HEIGHT as f64 / 2.0;
-    (px * CELL, py * CELL)
-}
-
 fn fill_with_alpha(ctx: &CanvasRenderingContext2d, base: &str, alpha: f64) {
     let (r, g, b) = match base {
         "green" => (0, 255, 0),
@@ -394,64 +386,23 @@ fn fill_with_alpha(ctx: &CanvasRenderingContext2d, base: &str, alpha: f64) {
 }
 
 fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
-    let p000 = project_point(pos.0 as f64, pos.1 as f64, pos.2 as f64);
-    let p100 = project_point(pos.0 as f64 + 1.0, pos.1 as f64, pos.2 as f64);
-    let p010 = project_point(pos.0 as f64, pos.1 as f64 + 1.0, pos.2 as f64);
-    let p110 = project_point(pos.0 as f64 + 1.0, pos.1 as f64 + 1.0, pos.2 as f64);
-    let p001 = project_point(pos.0 as f64, pos.1 as f64, pos.2 as f64 + 1.0);
-    let p101 = project_point(pos.0 as f64 + 1.0, pos.1 as f64, pos.2 as f64 + 1.0);
-    let p011 = project_point(pos.0 as f64, pos.1 as f64 + 1.0, pos.2 as f64 + 1.0);
-    let p111 = project_point(pos.0 as f64 + 1.0, pos.1 as f64 + 1.0, pos.2 as f64 + 1.0);
+    // Instead of constructing polygon paths for each face (which requires the
+    // `beginPath` Canvas API and a corresponding WebAssembly import), draw a
+    // simple perspective-scaled square for the cube. This avoids the missing
+    // import on some deployment targets while still providing a depth cue via
+    // size scaling.
 
-    // back face
-    fill_with_alpha(ctx, color, 0.2);
-    ctx.begin_path();
-    ctx.move_to(p001.0, p001.1);
-    ctx.line_to(p101.0, p101.1);
-    ctx.line_to(p111.0, p111.1);
-    ctx.line_to(p011.0, p011.1);
-    ctx.close_path();
-    ctx.fill();
+    // Project the cube's center point and derive a scale factor based on its
+    // depth. The deeper the cube (higher Z), the smaller it appears.
+    let d = DEPTH as f64 * 2.0;
+    let zf = pos.2 as f64 + d;
+    let scale = d / zf;
+    let cx = (pos.0 as f64 + 0.5 - WIDTH as f64 / 2.0) * scale;
+    let cy = (pos.1 as f64 + 0.5 - HEIGHT as f64 / 2.0) * scale;
+    let px = (cx + WIDTH as f64 / 2.0) * CELL;
+    let py = (cy + HEIGHT as f64 / 2.0) * CELL;
+    let size = CELL * scale;
 
-    // top face
-    fill_with_alpha(ctx, color, 0.6);
-    ctx.begin_path();
-    ctx.move_to(p011.0, p011.1);
-    ctx.line_to(p111.0, p111.1);
-    ctx.line_to(p110.0, p110.1);
-    ctx.line_to(p010.0, p010.1);
-    ctx.close_path();
-    ctx.fill();
-
-    // right face
-    fill_with_alpha(ctx, color, 0.4);
-    ctx.begin_path();
-    ctx.move_to(p101.0, p101.1);
-    ctx.line_to(p111.0, p111.1);
-    ctx.line_to(p110.0, p110.1);
-    ctx.line_to(p100.0, p100.1);
-    ctx.close_path();
-    ctx.fill();
-
-    // front face
     fill_with_alpha(ctx, color, 1.0);
-    ctx.begin_path();
-    ctx.move_to(p000.0, p000.1);
-    ctx.line_to(p100.0, p100.1);
-    ctx.line_to(p110.0, p110.1);
-    ctx.line_to(p010.0, p010.1);
-    ctx.close_path();
-    ctx.fill();
-
-    // edges
-    ctx.begin_path();
-    ctx.move_to(p000.0, p000.1);
-    ctx.line_to(p001.0, p001.1);
-    ctx.move_to(p100.0, p100.1);
-    ctx.line_to(p101.0, p101.1);
-    ctx.move_to(p110.0, p110.1);
-    ctx.line_to(p111.0, p111.1);
-    ctx.move_to(p010.0, p010.1);
-    ctx.line_to(p011.0, p011.1);
-    ctx.stroke();
+    ctx.fill_rect(px - size / 2.0, py - size / 2.0, size, size);
 }
