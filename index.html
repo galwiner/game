@@ -3,15 +3,36 @@
   <head>
     <meta charset="utf-8" />
     <title>Rust WASM Snake</title>
+    <style>
+      body {
+        background: black;
+        color: white;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      #container { text-align: center; }
+      canvas { background: #111; margin: 20px auto; display: block; touch-action:none; }
+      #score { margin-top: 10px; }
+    </style>
   </head>
   <body>
-    <canvas id="game" style="touch-action:none;"></canvas>
-    <button id="mode">Switch to 3D</button>
+    <div id="container">
+      <div id="score">Score: 0</div>
+      <canvas id="game"></canvas>
+      <div>
+        <button id="mode">Switch to 3D</button>
+        <button id="restart" style="display:none;">Restart</button>
+      </div>
+    </div>
     <script type="module">
-      import init, { toggle_mode } from "./pkg/snake_game.js";
+      import init, { toggle_mode, restart } from "./pkg/snake_game.js";
       init().then(() => {
         const mode = document.getElementById("mode");
         mode.addEventListener("click", () => toggle_mode());
+        document.getElementById("restart").addEventListener("click", () => restart());
 
         const canvas = document.getElementById("game");
         let start = null;

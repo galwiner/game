@@ -2,12 +2,33 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent, HtmlElement};
 
 const WIDTH: i32 = 20;
 const HEIGHT: i32 = 20;
 const DEPTH: i32 = 20;
 const CELL: f64 = 20.0;
+
+fn set_score(score: i32) {
+    let window = web_sys::window().unwrap();
+    if let Some(document) = window.document() {
+        if let Some(elem) = document.get_element_by_id("score") {
+            elem.set_inner_html(&format!("Score: {}", score));
+        }
+    }
+}
+
+fn show_restart(show: bool) {
+    let window = web_sys::window().unwrap();
+    if let Some(document) = window.document() {
+        if let Some(elem) = document.get_element_by_id("restart") {
+            let html: HtmlElement = elem.dyn_into().unwrap();
+            html.style()
+                .set_property("display", if show { "inline-block" } else { "none" })
+                .unwrap();
+        }
+    }
+}
 
 thread_local! {
     static GAME: RefCell<Option<GameVariant>> = RefCell::new(None);
@@ -82,6 +103,16 @@ pub fn toggle_mode() {
     });
 }
 
+#[wasm_bindgen]
+pub fn restart() {
+    GAME.with(|g| {
+        if let Some(game) = g.borrow_mut().as_mut() {
+            game.restart();
+        }
+    });
+    show_restart(false);
+}
+
 enum GameVariant {
     TwoD(Game2D),
     ThreeD(Game3D),
@@ -106,6 +137,18 @@ impl GameVariant {
             GameVariant::ThreeD(g) => g.draw(),
         }
     }
+    fn restart(&mut self) {
+        match self {
+            GameVariant::TwoD(g) => {
+                let ctx = g.ctx.clone();
+                *g = Game2D::new(ctx);
+            }
+            GameVariant::ThreeD(g) => {
+                let ctx = g.ctx.clone();
+                *g = Game3D::new(ctx);
+            }
+        }
+    }
 }
 
 struct Game2D {
@@ -113,6 +156,8 @@ struct Game2D {
     snake: VecDeque<(i32, i32)>,
     dir: (i32, i32),
     food: (i32, i32),
+    alive: bool,
+    score: i32,
 }
 
 impl Game2D {
@@ -120,11 +165,15 @@ impl Game2D {
         let mut snake = VecDeque::new();
         snake.push_back((WIDTH / 2, HEIGHT / 2));
         let food = (5, 5);
+        set_score(0);
+        show_restart(false);
         Self {
             ctx,
             snake,
             dir: (1, 0),
             food,
+            alive: true,
+            score: 0,
         }
     }
 
@@ -139,10 +188,21 @@ impl Game2D {
     }
 
     fn update(&mut self) {
+        if !self.alive {
+            return;
+        }
         let mut new_head = *self.snake.front().unwrap();
         new_head.0 = (new_head.0 + self.dir.0 + WIDTH) % WIDTH;
         new_head.1 = (new_head.1 + self.dir.1 + HEIGHT) % HEIGHT;
+        if self.snake.contains(&new_head) {
+            self.alive = false;
+            show_restart(true);
+            return;
+        }
+        self.snake.push_front(new_head);
         if new_head == self.food {
+            self.score += 1;
+            set_score(self.score);
             self.food = (
                 (js_sys::Math::random() * WIDTH as f64) as i32,
                 (js_sys::Math::random() * HEIGHT as f64) as i32,
@@ -150,7 +210,6 @@ impl Game2D {
         } else {
             self.snake.pop_back();
         }
-        self.snake.push_front(new_head);
     }
 
     fn draw(&self) -> Result<(), JsValue> {
@@ -173,7 +232,7 @@ impl Game2D {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct Vec3(i32, i32, i32);
 
 impl Vec3 {
@@ -233,6 +292,8 @@ struct Game3D {
     snake: VecDeque<Vec3>,
     orient: Orientation,
     food: Vec3,
+    alive: bool,
+    score: i32,
 }
 
 impl Game3D {
@@ -240,11 +301,15 @@ impl Game3D {
         let mut snake = VecDeque::new();
         snake.push_back(Vec3(WIDTH / 2, HEIGHT / 2, DEPTH / 2));
         let food = Vec3(5, 5, 5);
+        set_score(0);
+        show_restart(false);
         Self {
             ctx,
             snake,
             orient: Orientation::new(),
             food,
+            alive: true,
+            score: 0,
         }
     }
 
@@ -259,10 +324,20 @@ impl Game3D {
     }
 
     fn update(&mut self) {
+        if !self.alive {
+            return;
+        }
         let head = *self.snake.front().unwrap();
         let mut new_head = head.add(self.orient.f);
         new_head = new_head.wrap();
+        if self.snake.contains(&new_head) {
+            self.alive = false;
+            show_restart(true);
+            return;
+        }
         if new_head.0 == self.food.0 && new_head.1 == self.food.1 && new_head.2 == self.food.2 {
+            self.score += 1;
+            set_score(self.score);
             self.food = Vec3(
                 (js_sys::Math::random() * WIDTH as f64) as i32,
                 (js_sys::Math::random() * HEIGHT as f64) as i32,
@@ -282,14 +357,10 @@ impl Game3D {
             (WIDTH + DEPTH) as f64 * CELL,
             (HEIGHT + DEPTH) as f64 * CELL,
         );
-        self.ctx.set_fill_style(&JsValue::from_str("green"));
         for pos in self.snake.iter() {
-            let (x, y) = project(pos.0, pos.1, pos.2);
-            self.ctx.fill_rect(x, y, CELL, CELL);
+            draw_cube(&self.ctx, *pos, "green");
         }
-        self.ctx.set_fill_style(&JsValue::from_str("red"));
-        let (fx, fy) = project(self.food.0, self.food.1, self.food.2);
-        self.ctx.fill_rect(fx, fy, CELL, CELL);
+        draw_cube(&self.ctx, self.food, "red");
         Ok(())
     }
 }
@@ -297,4 +368,26 @@ impl Game3D {
 fn project(x: i32, y: i32, z: i32) -> (f64, f64) {
     let offset = z as f64 * CELL * 0.5;
     (x as f64 * CELL + offset, y as f64 * CELL + offset)
+}
+
+fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
+    let (x, y) = project(pos.0, pos.1, pos.2);
+    ctx.set_fill_style(&JsValue::from_str(color));
+    ctx.fill_rect(x, y, CELL, CELL);
+    let (x2, y2) = project(pos.0, pos.1, pos.2 + 1);
+    ctx.begin_path();
+    ctx.move_to(x, y);
+    ctx.line_to(x2, y2);
+    ctx.line_to(x2 + CELL, y2);
+    ctx.line_to(x + CELL, y);
+    ctx.close_path();
+    ctx.stroke();
+    let (x3, y3) = project(pos.0 + 1, pos.1, pos.2);
+    ctx.begin_path();
+    ctx.move_to(x + CELL, y);
+    ctx.line_to(x3 + CELL, y3);
+    ctx.line_to(x3 + CELL, y3 + CELL);
+    ctx.line_to(x + CELL, y + CELL);
+    ctx.close_path();
+    ctx.stroke();
 }
