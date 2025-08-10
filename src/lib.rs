@@ -381,6 +381,18 @@ fn project_point(x: f64, y: f64, z: f64) -> (f64, f64) {
     (px * CELL, py * CELL)
 }
 
+fn fill_with_alpha(ctx: &CanvasRenderingContext2d, base: &str, alpha: f64) {
+    let (r, g, b) = match base {
+        "green" => (0, 255, 0),
+        "red" => (255, 0, 0),
+        _ => (255, 255, 255),
+    };
+    ctx.set_fill_style(&JsValue::from_str(&format!(
+        "rgba({},{},{},{})",
+        r, g, b, alpha
+    )));
+}
+
 fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
     let p000 = project_point(pos.0 as f64, pos.1 as f64, pos.2 as f64);
     let p100 = project_point(pos.0 as f64 + 1.0, pos.1 as f64, pos.2 as f64);
@@ -392,8 +404,7 @@ fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
     let p111 = project_point(pos.0 as f64 + 1.0, pos.1 as f64 + 1.0, pos.2 as f64 + 1.0);
 
     // back face
-    ctx.set_fill_style(&JsValue::from_str(color));
-    ctx.set_global_alpha(0.2);
+    fill_with_alpha(ctx, color, 0.2);
     ctx.begin_path();
     ctx.move_to(p001.0, p001.1);
     ctx.line_to(p101.0, p101.1);
@@ -403,7 +414,7 @@ fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
     ctx.fill();
 
     // top face
-    ctx.set_global_alpha(0.6);
+    fill_with_alpha(ctx, color, 0.6);
     ctx.begin_path();
     ctx.move_to(p011.0, p011.1);
     ctx.line_to(p111.0, p111.1);
@@ -413,7 +424,7 @@ fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
     ctx.fill();
 
     // right face
-    ctx.set_global_alpha(0.4);
+    fill_with_alpha(ctx, color, 0.4);
     ctx.begin_path();
     ctx.move_to(p101.0, p101.1);
     ctx.line_to(p111.0, p111.1);
@@ -423,7 +434,7 @@ fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
     ctx.fill();
 
     // front face
-    ctx.set_global_alpha(1.0);
+    fill_with_alpha(ctx, color, 1.0);
     ctx.begin_path();
     ctx.move_to(p000.0, p000.1);
     ctx.line_to(p100.0, p100.1);
