@@ -38,7 +38,6 @@ thread_local! {
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
-    console_error_panic_hook::set_once();
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let canvas: HtmlCanvasElement = document.get_element_by_id("game").unwrap().dyn_into()?;
