@@ -3,9 +3,10 @@
 This project provides a simple implementation of the classic Snake game
 written in Rust and compiled to WebAssembly. The game renders on an HTML
 `<canvas>` element and is controlled with the arrow keys. It includes both a
-traditional 2D version and a 3D cube variant that can be toggled with a button
-on the page. The score is displayed above the play field, and a restart button
-appears when the snake collides with itself.
+traditional 2D version and a 3D cube variant rendered with perspective that can
+be toggled with a button on the page. The score is displayed above the play
+field and updates as you eat food, and a restart button appears when the snake
+collides with itself.
 
 ## Building
 

@@ -40,8 +40,8 @@ pub fn start() -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let canvas: HtmlCanvasElement = document.get_element_by_id("game").unwrap().dyn_into()?;
-    canvas.set_width(((WIDTH + DEPTH) as f64 * CELL) as u32);
-    canvas.set_height(((HEIGHT + DEPTH) as f64 * CELL) as u32);
+    canvas.set_width((WIDTH as f64 * CELL) as u32);
+    canvas.set_height((HEIGHT as f64 * CELL) as u32);
     let ctx = canvas
         .get_context("2d")?
         .unwrap()
@@ -228,6 +228,7 @@ impl Game2D {
             CELL,
             CELL,
         );
+        set_score(self.score);
         Ok(())
     }
 }
@@ -351,43 +352,93 @@ impl Game3D {
 
     fn draw(&self) -> Result<(), JsValue> {
         self.ctx.set_fill_style(&JsValue::from_str("black"));
-        self.ctx.fill_rect(
-            0.0,
-            0.0,
-            (WIDTH + DEPTH) as f64 * CELL,
-            (HEIGHT + DEPTH) as f64 * CELL,
-        );
-        for pos in self.snake.iter() {
-            draw_cube(&self.ctx, *pos, "green");
+        self.ctx.fill_rect(0.0, 0.0, WIDTH as f64 * CELL, HEIGHT as f64 * CELL);
+
+        // draw from farthest to nearest for basic occlusion
+        let mut items: Vec<(Vec3, &str)> = self
+            .snake
+            .iter()
+            .map(|p| (*p, "green"))
+            .collect();
+        items.push((self.food, "red"));
+        items.sort_by_key(|(p, _)| p.2);
+        for (p, color) in items.into_iter() {
+            draw_cube(&self.ctx, p, color);
         }
-        draw_cube(&self.ctx, self.food, "red");
+
+        set_score(self.score);
         Ok(())
     }
 }
 
-fn project(x: i32, y: i32, z: i32) -> (f64, f64) {
-    let offset = z as f64 * CELL * 0.5;
-    (x as f64 * CELL + offset, y as f64 * CELL + offset)
+fn project_point(x: f64, y: f64, z: f64) -> (f64, f64) {
+    let d = DEPTH as f64 * 2.0;
+    let zf = z + d;
+    let px = (x - WIDTH as f64 / 2.0) * d / zf + WIDTH as f64 / 2.0;
+    let py = (y - HEIGHT as f64 / 2.0) * d / zf + HEIGHT as f64 / 2.0;
+    (px * CELL, py * CELL)
 }
 
 fn draw_cube(ctx: &CanvasRenderingContext2d, pos: Vec3, color: &str) {
-    let (x, y) = project(pos.0, pos.1, pos.2);
+    let p000 = project_point(pos.0 as f64, pos.1 as f64, pos.2 as f64);
+    let p100 = project_point(pos.0 as f64 + 1.0, pos.1 as f64, pos.2 as f64);
+    let p010 = project_point(pos.0 as f64, pos.1 as f64 + 1.0, pos.2 as f64);
+    let p110 = project_point(pos.0 as f64 + 1.0, pos.1 as f64 + 1.0, pos.2 as f64);
+    let p001 = project_point(pos.0 as f64, pos.1 as f64, pos.2 as f64 + 1.0);
+    let p101 = project_point(pos.0 as f64 + 1.0, pos.1 as f64, pos.2 as f64 + 1.0);
+    let p011 = project_point(pos.0 as f64, pos.1 as f64 + 1.0, pos.2 as f64 + 1.0);
+    let p111 = project_point(pos.0 as f64 + 1.0, pos.1 as f64 + 1.0, pos.2 as f64 + 1.0);
+
+    // back face
     ctx.set_fill_style(&JsValue::from_str(color));
-    ctx.fill_rect(x, y, CELL, CELL);
-    let (x2, y2) = project(pos.0, pos.1, pos.2 + 1);
+    ctx.set_global_alpha(0.2);
     ctx.begin_path();
-    ctx.move_to(x, y);
-    ctx.line_to(x2, y2);
-    ctx.line_to(x2 + CELL, y2);
-    ctx.line_to(x + CELL, y);
+    ctx.move_to(p001.0, p001.1);
+    ctx.line_to(p101.0, p101.1);
+    ctx.line_to(p111.0, p111.1);
+    ctx.line_to(p011.0, p011.1);
     ctx.close_path();
-    ctx.stroke();
-    let (x3, y3) = project(pos.0 + 1, pos.1, pos.2);
+    ctx.fill();
+
+    // top face
+    ctx.set_global_alpha(0.6);
     ctx.begin_path();
-    ctx.move_to(x + CELL, y);
-    ctx.line_to(x3 + CELL, y3);
-    ctx.line_to(x3 + CELL, y3 + CELL);
-    ctx.line_to(x + CELL, y + CELL);
+    ctx.move_to(p011.0, p011.1);
+    ctx.line_to(p111.0, p111.1);
+    ctx.line_to(p110.0, p110.1);
+    ctx.line_to(p010.0, p010.1);
     ctx.close_path();
+    ctx.fill();
+
+    // right face
+    ctx.set_global_alpha(0.4);
+    ctx.begin_path();
+    ctx.move_to(p101.0, p101.1);
+    ctx.line_to(p111.0, p111.1);
+    ctx.line_to(p110.0, p110.1);
+    ctx.line_to(p100.0, p100.1);
+    ctx.close_path();
+    ctx.fill();
+
+    // front face
+    ctx.set_global_alpha(1.0);
+    ctx.begin_path();
+    ctx.move_to(p000.0, p000.1);
+    ctx.line_to(p100.0, p100.1);
+    ctx.line_to(p110.0, p110.1);
+    ctx.line_to(p010.0, p010.1);
+    ctx.close_path();
+    ctx.fill();
+
+    // edges
+    ctx.begin_path();
+    ctx.move_to(p000.0, p000.1);
+    ctx.line_to(p001.0, p001.1);
+    ctx.move_to(p100.0, p100.1);
+    ctx.line_to(p101.0, p101.1);
+    ctx.move_to(p110.0, p110.1);
+    ctx.line_to(p111.0, p111.1);
+    ctx.move_to(p010.0, p010.1);
+    ctx.line_to(p011.0, p011.1);
     ctx.stroke();
 }
