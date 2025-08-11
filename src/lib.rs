@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{
     CanvasRenderingContext2d, HtmlButtonElement, HtmlCanvasElement, HtmlElement, KeyboardEvent,
-    TouchEvent,
+    PointerEvent, TouchEvent,
 };
 
 const WIDTH: i32 = 20;
@@ -69,10 +69,11 @@ pub fn start() -> Result<(), JsValue> {
         closure.forget();
     }
 
-    // touch events
+    // swipe events for touch and pointer input
     {
         let canvas = canvas.clone();
         let start = Rc::new(RefCell::new(None::<(i32, i32)>));
+
         // touchstart
         {
             let start = start.clone();
@@ -117,6 +118,52 @@ pub fn start() -> Result<(), JsValue> {
             }) as Box<dyn FnMut(_)>);
             canvas
                 .add_event_listener_with_callback("touchend", closure.as_ref().unchecked_ref())?;
+            closure.forget();
+        }
+        // pointerdown
+        {
+            let start = start.clone();
+            let closure = Closure::wrap(Box::new(move |event: PointerEvent| {
+                *start.borrow_mut() = Some((event.client_x(), event.client_y()));
+                event.prevent_default();
+            }) as Box<dyn FnMut(_)>);
+            canvas.add_event_listener_with_callback(
+                "pointerdown",
+                closure.as_ref().unchecked_ref(),
+            )?;
+            closure.forget();
+        }
+        // pointerup
+        {
+            let start = start.clone();
+            let closure = Closure::wrap(Box::new(move |event: PointerEvent| {
+                if let Some((sx, sy)) = *start.borrow() {
+                    let dx = event.client_x() - sx;
+                    let dy = event.client_y() - sy;
+                    GAME.with(|game| {
+                        if let Some(g) = game.borrow_mut().as_mut() {
+                            if dx.abs() > dy.abs() {
+                                if dx > 0 {
+                                    g.change_dir("ArrowRight");
+                                } else {
+                                    g.change_dir("ArrowLeft");
+                                }
+                            } else {
+                                if dy > 0 {
+                                    g.change_dir("ArrowDown");
+                                } else {
+                                    g.change_dir("ArrowUp");
+                                }
+                            }
+                        }
+                    });
+                }
+                event.prevent_default();
+            }) as Box<dyn FnMut(_)>);
+            canvas.add_event_listener_with_callback(
+                "pointerup",
+                closure.as_ref().unchecked_ref(),
+            )?;
             closure.forget();
         }
     }
